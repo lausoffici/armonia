@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "*",
-      "Bash(npx shadcn@latest init -d)"
-    ]
+      "WebFetch(domain:github.com)"
+    ],
+    "deny": [],
+    "defaultMode": "bypassPermissions"
   }
 }

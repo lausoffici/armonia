@@ -1,73 +1,51 @@
-# React + TypeScript + Vite
+# Armonía — Herramienta de Músico con IA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+App mobile-first para ensayo, tocadas y análisis armónico.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### MVP (sin IA)
+- **Buscador de canciones** — chord sheet instantáneo, sin/con letra
+- **Afinador** — guitarra, bajo, ukelele con detección por micrófono
+- **Metrónomo** — tap tempo, compases configurables (2/4, 3/4, 4/4, 6/4)
+- **Transpositor** — cambiar tonalidad de un chord sheet con un click
 
-## React Compiler
+### v1 (con IA)
+- **Análisis armónico** en 3 niveles: básico, intermedio, avanzado
+- **Detector de BPM** por micrófono
+- **Setlist builder** — armar lista de temas para la tocada
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### v2 (comunidad + IA avanzada)
+- **Identificador de acordes** por micrófono
+- **Sugeridor de progresiones**
+- **Chord sheets compartidos** por la comunidad
 
-## Expanding the ESLint configuration
+## Stack
+- Vite, React, TypeScript
+- Tailwind CSS v4, shadcn-ui
+- React Router
+- Web Audio API (afinador, metrónomo)
+- Anthropic API (claude-haiku-4-5) para análisis armónico
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Estructura
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/
+│   ├── layout/        # Mobile layout, bottom nav
+│   └── ui/            # shadcn components
+├── hooks/             # Custom hooks (audio, etc)
+├── lib/               # Utilities
+└── pages/
+    ├── search.tsx      # Buscador + chord sheet
+    ├── tuner.tsx       # Afinador
+    ├── metronome.tsx   # Metrónomo
+    └── analysis.tsx    # Análisis con IA
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Dev
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
