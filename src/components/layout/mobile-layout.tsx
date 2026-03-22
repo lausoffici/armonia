@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { hapticTap, isNative } from '@/lib/capacitor'
 
 const navItems = [
   { path: '/', label: 'Buscar', icon: SearchIcon },
@@ -13,26 +14,40 @@ export function MobileLayout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
 
+  const handleNavTap = (path: string) => {
+    if (location.pathname !== path) {
+      hapticTap()
+      navigate(path)
+    }
+  }
+
   return (
     <div className="flex flex-col h-dvh bg-background">
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      {/* Status bar spacer for native platforms */}
+      {isNative && <div className="safe-top flex-shrink-0" />}
 
-      <nav className="border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+      <main className="flex-1 overflow-y-auto pb-4">{children}</main>
+
+      {/* Floating glass nav */}
+      <nav className="sticky bottom-0 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1">
+        <div className="flex items-center justify-around h-16 max-w-md mx-auto rounded-2xl bg-card/80 backdrop-blur-xl border border-border shadow-[0_-4px_32px_oklch(0_0_0/30%)]">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path
             return (
               <button
                 key={item.path}
-                onClick={() => navigate(item.path)}
+                onClick={() => handleNavTap(item.path)}
                 className={cn(
-                  'flex flex-col items-center gap-1 px-3 py-2 text-xs transition-colors',
+                  'relative flex flex-col items-center gap-1 px-4 py-2 text-[11px] font-medium transition-all duration-200',
                   isActive
-                    ? 'text-foreground'
+                    ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <item.icon className={cn('size-5', isActive && 'stroke-[2.5]')} />
+                {isActive && (
+                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-primary shadow-[0_0_8px_var(--amber-glow)]" />
+                )}
+                <item.icon className={cn('size-5 transition-all', isActive && 'stroke-[2.5] drop-shadow-[0_0_6px_var(--amber-glow)]')} />
                 <span>{item.label}</span>
               </button>
             )

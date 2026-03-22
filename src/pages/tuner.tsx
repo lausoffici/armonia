@@ -1,11 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-const TUNINGS = {
-  guitar: { name: 'Guitarra', notes: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'] },
-  bass: { name: 'Bajo', notes: ['E1', 'A1', 'D2', 'G2'] },
-  ukulele: { name: 'Ukelele', notes: ['G4', 'C4', 'E4', 'A4'] },
-}
-
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 function frequencyToNote(frequency: number) {
@@ -60,18 +54,26 @@ function autoCorrelate(buf: Float32Array, sampleRate: number) {
   return sampleRate / t0
 }
 
-type TuningKey = keyof typeof TUNINGS
+// Smoothing constants
+const SMOOTHING_FACTOR = 0.15
+const NOTE_STABILITY_FRAMES = 6
 
 export function TunerPage() {
-  const [instrument, setInstrument] = useState<TuningKey>('guitar')
   const [isListening, setIsListening] = useState(false)
   const [detectedNote, setDetectedNote] = useState<string | null>(null)
   const [cents, setCents] = useState(0)
+  const [detectedFreq, setDetectedFreq] = useState<number | null>(null)
 
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const rafRef = useRef<number>(0)
   const streamRef = useRef<MediaStream | null>(null)
+
+  // Smoothing refs
+  const smoothedFreqRef = useRef<number>(0)
+  const lastNoteRef = useRef<string | null>(null)
+  const noteStreakRef = useRef<number>(0)
+  const smoothedCentsRef = useRef<number>(0)
 
   const detect = useCallback(() => {
     if (!analyserRef.current) return
@@ -80,9 +82,29 @@ export function TunerPage() {
     const freq = autoCorrelate(buf, audioContextRef.current!.sampleRate)
 
     if (freq > 0) {
-      const note = frequencyToNote(freq)
-      setDetectedNote(`${note.noteName}${note.octave}`)
-      setCents(note.cents)
+      if (smoothedFreqRef.current === 0) {
+        smoothedFreqRef.current = freq
+      } else {
+        smoothedFreqRef.current += SMOOTHING_FACTOR * (freq - smoothedFreqRef.current)
+      }
+
+      const note = frequencyToNote(smoothedFreqRef.current)
+      const noteStr = `${note.noteName}${note.octave}`
+
+      if (noteStr === lastNoteRef.current) {
+        noteStreakRef.current++
+      } else {
+        noteStreakRef.current = 1
+        lastNoteRef.current = noteStr
+      }
+
+      if (noteStreakRef.current >= NOTE_STABILITY_FRAMES) {
+        setDetectedNote(noteStr)
+        setDetectedFreq(Math.round(smoothedFreqRef.current * 10) / 10)
+      }
+
+      smoothedCentsRef.current += 0.25 * (note.cents - smoothedCentsRef.current)
+      setCents(Math.round(smoothedCentsRef.current))
     }
 
     rafRef.current = requestAnimationFrame(detect)
@@ -113,6 +135,11 @@ export function TunerPage() {
     setIsListening(false)
     setDetectedNote(null)
     setCents(0)
+    setDetectedFreq(null)
+    smoothedFreqRef.current = 0
+    lastNoteRef.current = null
+    noteStreakRef.current = 0
+    smoothedCentsRef.current = 0
   }, [])
 
   useEffect(() => {
@@ -123,71 +150,87 @@ export function TunerPage() {
     }
   }, [])
 
-  const tuning = TUNINGS[instrument]
   const centsAbs = Math.abs(cents)
   const inTune = centsAbs <= 5
 
+  const ringRotation = detectedNote ? (cents / 50) * 180 : 0
+
   return (
-    <div className="flex flex-col items-center p-4 space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Afinador</h1>
-        <p className="text-sm text-muted-foreground">Afiná tu instrumento con el micrófono</p>
+    <div className="flex flex-col items-center px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="space-y-1 text-center animate-fade-in-up">
+        <h1 className="text-3xl font-heading italic tracking-tight">Afinador</h1>
+        <p className="text-sm text-muted-foreground">Afinador cromático universal</p>
       </div>
 
-      {/* Instrument selector */}
-      <div className="flex gap-2">
-        {(Object.keys(TUNINGS) as TuningKey[]).map((key) => (
-          <button
-            key={key}
-            onClick={() => setInstrument(key)}
-            className={`px-4 py-2 rounded-full text-sm transition-colors ${
-              instrument === key
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {TUNINGS[key].name}
-          </button>
-        ))}
-      </div>
-
-      {/* Note display */}
-      <div className="flex flex-col items-center justify-center w-48 h-48 rounded-full border-4 border-border relative">
-        {detectedNote ? (
-          <>
-            <span className={`text-5xl font-mono font-bold ${inTune ? 'text-green-500' : 'text-foreground'}`}>
-              {detectedNote.replace(/\d/, '')}
+      {/* Note display - the hero element */}
+      <div className="relative animate-fade-in-up" style={{ animationDelay: '80ms' }}>
+        {/* Outer glow ring */}
+        <div
+          className="absolute inset-0 rounded-full transition-all duration-300"
+          style={{
+            background: detectedNote
+              ? inTune
+                ? 'conic-gradient(from 0deg, oklch(0.72 0.19 142), oklch(0.72 0.19 142 / 30%), oklch(0.72 0.19 142))'
+                : `conic-gradient(from ${ringRotation}deg, var(--primary), oklch(0.79 0.16 75 / 20%), var(--primary))`
+              : 'conic-gradient(from 0deg, oklch(1 0 0 / 6%), oklch(1 0 0 / 2%), oklch(1 0 0 / 6%))',
+            padding: '3px',
+            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
+          }}
+        />
+        <div
+          className={`flex flex-col items-center justify-center w-52 h-52 rounded-full border-[3px] transition-all duration-300 ${
+            detectedNote
+              ? inTune
+                ? 'border-green-500/60 shadow-[0_0_40px_oklch(0.72_0.19_142/20%)]'
+                : 'border-primary/40 shadow-[0_0_40px_var(--amber-glow)]'
+              : 'border-border bg-card/30'
+          }`}
+        >
+          {detectedNote ? (
+            <>
+              <span className={`text-6xl font-heading italic transition-colors duration-200 ${inTune ? 'text-green-400' : 'text-foreground'}`}>
+                {detectedNote.replace(/\d/, '')}
+              </span>
+              <span className="text-sm text-muted-foreground mt-1 font-mono">
+                {detectedNote.match(/\d/)?.[0] && `Oct ${detectedNote.match(/\d/)?.[0]}`}
+              </span>
+              <span className="text-[10px] text-muted-foreground/50 mt-0.5 font-mono">
+                {detectedFreq} Hz
+              </span>
+            </>
+          ) : (
+            <span className="text-muted-foreground/60 text-sm text-center px-6">
+              {isListening ? 'Tocá una nota...' : 'Presioná iniciar'}
             </span>
-            <span className="text-sm text-muted-foreground mt-1">
-              {detectedNote.match(/\d/)?.[0] && `Octava ${detectedNote.match(/\d/)?.[0]}`}
-            </span>
-          </>
-        ) : (
-          <span className="text-muted-foreground text-sm">
-            {isListening ? 'Tocá una nota...' : 'Presioná iniciar'}
-          </span>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Cents indicator */}
-      <div className="w-64 space-y-2">
-        <div className="flex justify-between text-xs text-muted-foreground">
+      <div className="w-72 space-y-2 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+        <div className="flex justify-between text-[10px] text-muted-foreground/50 font-mono">
           <span>-50</span>
-          <span>0</span>
+          <span className={`transition-colors ${detectedNote && inTune ? 'text-green-400' : ''}`}>0</span>
           <span>+50</span>
         </div>
-        <div className="h-2 bg-muted rounded-full relative overflow-hidden">
+        <div className="h-1.5 bg-muted/40 rounded-full relative overflow-hidden">
+          {/* Center mark */}
+          <div className="absolute left-1/2 top-0 w-px h-full bg-muted-foreground/30 -translate-x-1/2" />
+          {/* Indicator */}
           <div
-            className={`absolute top-0 h-full w-2 rounded-full transition-all duration-100 ${
-              inTune ? 'bg-green-500' : 'bg-primary'
+            className={`absolute top-0 h-full w-3 rounded-full transition-all duration-100 ${
+              inTune ? 'bg-green-400 shadow-[0_0_10px_oklch(0.72_0.19_142/50%)]' : 'bg-primary shadow-[0_0_10px_var(--amber-glow)]'
             }`}
             style={{ left: `${50 + cents}%`, transform: 'translateX(-50%)' }}
           />
         </div>
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground font-mono">
           {detectedNote
             ? inTune
-              ? 'Afinado'
+              ? '● Afinado'
               : `${cents > 0 ? '+' : ''}${cents} cents`
             : '\u00A0'}
         </p>
@@ -196,35 +239,15 @@ export function TunerPage() {
       {/* Start/Stop button */}
       <button
         onClick={isListening ? stopListening : startListening}
-        className={`w-full max-w-xs py-3 rounded-lg font-medium transition-colors ${
+        className={`w-full max-w-xs py-3.5 rounded-xl font-medium transition-all duration-300 active:scale-[0.97] ${
           isListening
-            ? 'bg-destructive text-white hover:bg-destructive/90'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            ? 'bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25'
+            : 'bg-primary text-primary-foreground hover:shadow-[0_0_24px_var(--amber-glow)]'
         }`}
+        style={{ animationDelay: '200ms' }}
       >
         {isListening ? 'Detener' : 'Iniciar afinador'}
       </button>
-
-      {/* Reference notes */}
-      <div className="w-full max-w-xs space-y-2">
-        <p className="text-xs text-muted-foreground uppercase tracking-wider">
-          Afinación estándar — {tuning.name}
-        </p>
-        <div className="flex justify-center gap-3">
-          {tuning.notes.map((note, i) => (
-            <div
-              key={i}
-              className={`flex items-center justify-center w-12 h-12 rounded-lg border text-sm font-mono font-semibold transition-colors ${
-                detectedNote === note
-                  ? 'border-green-500 bg-green-500/10 text-green-500'
-                  : 'border-border bg-card'
-              }`}
-            >
-              {note}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

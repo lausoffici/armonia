@@ -50,7 +50,6 @@ export function MetronomePage() {
     beatRef.current = 0
   }, [])
 
-  // Restart interval when bpm changes while playing
   useEffect(() => {
     if (isPlaying) {
       clearInterval(intervalRef.current)
@@ -82,36 +81,58 @@ export function MetronomePage() {
     }
   }
 
+  // Tempo label
+  const tempoLabel = bpm < 60 ? 'Largo' : bpm < 80 ? 'Adagio' : bpm < 100 ? 'Andante' : bpm < 120 ? 'Moderato' : bpm < 140 ? 'Allegro' : bpm < 180 ? 'Vivace' : 'Presto'
+
   return (
-    <div className="flex flex-col items-center p-4 space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Metrónomo</h1>
+    <div className="flex flex-col items-center px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="space-y-1 text-center animate-fade-in-up">
+        <h1 className="text-3xl font-heading italic tracking-tight">Metrónomo</h1>
         <p className="text-sm text-muted-foreground">Mantené el tempo en tu ensayo</p>
       </div>
 
-      {/* BPM Display */}
-      <div className="flex flex-col items-center">
-        <span className="text-7xl font-mono font-bold tabular-nums">{bpm}</span>
-        <span className="text-sm text-muted-foreground mt-1">BPM</span>
+      {/* BPM Display - the hero */}
+      <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '60ms' }}>
+        <div className="relative">
+          <span
+            className={`text-8xl font-mono font-bold tabular-nums transition-all duration-100 ${
+              isPlaying ? 'text-primary drop-shadow-[0_0_20px_var(--amber-glow)]' : 'text-foreground'
+            }`}
+          >
+            {bpm}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-muted-foreground/50 uppercase tracking-wider">BPM</span>
+          <span className="w-px h-3 bg-border" />
+          <span className="text-xs text-primary/70 font-heading italic">{tempoLabel}</span>
+        </div>
       </div>
 
       {/* BPM Slider */}
-      <input
-        type="range"
-        min="30"
-        max="300"
-        value={bpm}
-        onChange={(e) => setBpm(Number(e.target.value))}
-        className="w-full max-w-xs accent-primary"
-      />
+      <div className="w-full max-w-xs animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+        <input
+          type="range"
+          min="30"
+          max="300"
+          value={bpm}
+          onChange={(e) => setBpm(Number(e.target.value))}
+          className="w-full"
+        />
+        <div className="flex justify-between text-[10px] text-muted-foreground/40 font-mono mt-1">
+          <span>30</span>
+          <span>300</span>
+        </div>
+      </div>
 
       {/* Quick BPM buttons */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
         {[-10, -1, 1, 10].map((delta) => (
           <button
             key={delta}
             onClick={() => setBpm(Math.max(30, Math.min(300, bpm + delta)))}
-            className="w-12 h-10 rounded-lg border border-border text-sm font-mono hover:bg-accent transition-colors"
+            className="w-12 h-10 rounded-xl border border-border bg-card/40 text-sm font-mono text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all active:scale-95"
           >
             {delta > 0 ? `+${delta}` : delta}
           </button>
@@ -119,32 +140,36 @@ export function MetronomePage() {
       </div>
 
       {/* Beat indicator */}
-      <div className="flex gap-3">
-        {Array.from({ length: beatsPerMeasure }).map((_, i) => (
-          <div
-            key={i}
-            className={`w-8 h-8 rounded-full border-2 transition-all duration-75 ${
-              currentBeat === i && isPlaying
-                ? i === 0
-                  ? 'bg-primary border-primary scale-110'
-                  : 'bg-muted-foreground border-muted-foreground scale-110'
-                : 'border-border'
-            }`}
-          />
-        ))}
+      <div className="flex gap-3 animate-fade-in-up" style={{ animationDelay: '180ms' }}>
+        {Array.from({ length: beatsPerMeasure }).map((_, i) => {
+          const isActive = currentBeat === i && isPlaying
+          const isAccent = i === 0
+          return (
+            <div
+              key={i}
+              className={`w-9 h-9 rounded-full border-2 transition-all duration-75 ${
+                isActive
+                  ? isAccent
+                    ? 'bg-primary border-primary scale-125 shadow-[0_0_20px_var(--amber-glow)]'
+                    : 'bg-foreground/80 border-foreground/80 scale-110'
+                  : 'border-border/60 bg-card/30'
+              } ${isActive ? 'animate-beat-pop' : ''}`}
+            />
+          )
+        })}
       </div>
 
       {/* Time signature */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Compás:</span>
+      <div className="flex items-center gap-2 animate-fade-in-up" style={{ animationDelay: '220ms' }}>
+        <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mr-1">Compás</span>
         {[2, 3, 4, 6].map((beats) => (
           <button
             key={beats}
             onClick={() => setBeatsPerMeasure(beats)}
-            className={`w-10 h-10 rounded-lg text-sm font-mono transition-colors ${
+            className={`w-11 h-10 rounded-xl text-sm font-mono transition-all duration-200 ${
               beatsPerMeasure === beats
-                ? 'bg-primary text-primary-foreground'
-                : 'border border-border hover:bg-accent'
+                ? 'bg-primary text-primary-foreground shadow-[0_0_12px_var(--amber-glow)]'
+                : 'border border-border bg-card/40 text-muted-foreground hover:text-foreground hover:border-primary/20'
             }`}
           >
             {beats}/4
@@ -153,20 +178,20 @@ export function MetronomePage() {
       </div>
 
       {/* Controls */}
-      <div className="flex gap-3 w-full max-w-xs">
+      <div className="flex gap-3 w-full max-w-xs animate-fade-in-up" style={{ animationDelay: '260ms' }}>
         <button
           onClick={isPlaying ? stop : start}
-          className={`flex-1 py-3 rounded-lg font-medium transition-colors ${
+          className={`flex-1 py-3.5 rounded-xl font-medium transition-all duration-300 active:scale-[0.97] ${
             isPlaying
-              ? 'bg-destructive text-white hover:bg-destructive/90'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              ? 'bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25'
+              : 'bg-primary text-primary-foreground hover:shadow-[0_0_24px_var(--amber-glow)]'
           }`}
         >
           {isPlaying ? 'Detener' : 'Iniciar'}
         </button>
         <button
           onClick={handleTap}
-          className="flex-1 py-3 rounded-lg font-medium border border-border hover:bg-accent transition-colors"
+          className="flex-1 py-3.5 rounded-xl font-medium border border-border bg-card/40 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all active:scale-[0.97]"
         >
           Tap tempo
         </button>
